@@ -1,0 +1,18 @@
+.
+├── ChangeLog.md
+├── LICENSE
+├── README.md
+├── Setup.hs
+├── app
+│   └── Main.hs
+├── cat
+├── oneup-cli.cabal
+├── package.yaml
+├── pbcopy
+├── src
+│   └── Lib.hs
+├── stack.yaml
+└── test
+    └── Spec.hs
+
+3 directories, 12 files
