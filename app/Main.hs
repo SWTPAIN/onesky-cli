@@ -1,6 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
-import Lib
+import           Data.Maybe                     ( fromMaybe )
+import           Lib
+import           System.Environment
 
 main :: IO ()
-main = someFunc
+main = do
+  config <- readEnv
+  print config
