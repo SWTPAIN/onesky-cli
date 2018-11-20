@@ -18,4 +18,3 @@ readEnv = do
     apiKey    <- lookupEnv "ONESKY_API_KEY"
     password  <- lookupEnv "ONESKY_SECRET_KEY"
     return $ Config <$> projectId <*> password <*> password
-    -- return $  

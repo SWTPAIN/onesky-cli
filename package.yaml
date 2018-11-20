@@ -35,6 +35,7 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - oneup-cli
+    - turtle
 
 tests:
   oneup-cli-test:
