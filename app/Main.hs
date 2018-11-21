@@ -9,8 +9,6 @@ import           Turtle
 import           Data.Text                     as Text
 import           Paths_oneup_cli                ( version )
 import           Data.Version                   ( showVersion )
-import           Network.Wreq
-import           Control.Lens
 import qualified OneSkyApi
 
 -- return apiAddress + '/1/projects/' + options.projectId + '/translations/multilingual?' + queryString.stringify({

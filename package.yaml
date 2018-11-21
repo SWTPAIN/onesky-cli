@@ -24,6 +24,15 @@ dependencies:
 
 library:
   source-dirs: src
+  dependencies:
+    - wreq
+    - lens
+    - time
+    - pureMD5
+    - bytestring
+    - base64-bytestring
+    - lens-aeson
+    - text
 
 executables:
   oneup-cli:
@@ -35,15 +44,8 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - oneup-cli
-      - turtle
-      - wreq
-      - lens
-      - time
-      - pureMD5
-      - bytestring
-      - base64-bytestring
-      - lens-aeson
       - text
+      - turtle
 
 tests:
   oneup-cli-test:
