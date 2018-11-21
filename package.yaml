@@ -1,14 +1,14 @@
-name:                oneup-cli
-version:             0.1.0.0
-github:              "SWTPAIN/oneup-cli"
-license:             BSD3
-author:              "KaFai Choi"
-maintainer:          "kafaicoder@gmail.com"
-copyright:           "MIT"
+name: oneup-cli
+version: 0.1.0.0
+github: "bruteforcecat/oneup-cli"
+license: BSD3
+author: "KaFai Choi"
+maintainer: "kafaicoder@gmail.com"
+copyright: "MIT"
 
 extra-source-files:
-- README.md
-- ChangeLog.md
+  - README.md
+  - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -17,33 +17,41 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/SWTPAIN/oneup-cli#readme>
+description: Please see the README on GitHub at <https://github.com/bruteforcecat/oneup-cli#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
 
 library:
   source-dirs: src
 
 executables:
   oneup-cli:
-    main:                Main.hs
-    source-dirs:         app
+    main: Main.hs
+    source-dirs: app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - oneup-cli
-    - turtle
+      - oneup-cli
+      - turtle
+      - wreq
+      - lens
+      - time
+      - pureMD5
+      - bytestring
+      - base64-bytestring
+      - lens-aeson
+      - text
 
 tests:
   oneup-cli-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - oneup-cli
+      - oneup-cli
