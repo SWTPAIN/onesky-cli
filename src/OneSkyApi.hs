@@ -13,10 +13,12 @@ where
 import           Control.Category               ( (>>>) )
 import qualified Data.ByteString.Base64        as Base64
                                                 ( encode )
+import qualified Data.ByteString               as S
 import qualified Data.ByteString.Char8         as B8
                                                 ( pack
                                                 , unpack
                                                 )
+import qualified Data.Text.Lazy.Encoding       as TLE
 import           Data.Time.Clock.POSIX          ( getPOSIXTime )
 import qualified Data.Text                     as Text
                                                 ( unpack
@@ -49,10 +51,8 @@ getFiles :: Credential -> ProjectId -> String -> IO String
 getFiles (Credential apiKey secret) (ProjectId projectId) fileName = do
     putStrLn requestUrl
     (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
-    putStrLn devHash
-    putStrLn $ show timestamp
-    r <- Wreq.getWith (getOpts devHash timestamp) requestUrl
-    return $ Text.unpack $ r ^. url
+    r                    <- Wreq.getWith (getOpts devHash timestamp) requestUrl
+    return $ BL8.unpack $ r ^. Wreq.responseBody
   where
     requestUrl =
         apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
@@ -63,8 +63,8 @@ getFiles (Credential apiKey secret) (ProjectId projectId) fileName = do
                , ("source_file_name", Text.pack fileName)
                , ("dev_hash"        , Text.pack devHash)
                , ("timestamp"       , Text.pack $ show timestamp)
+               , ("file_format"     , "I18NEXT_MULTILINGUAL_JSON")
                ]
-    url = Wreq.responseBody . key "url" . _String
 
 getDevHash :: String -> Integer -> (String, Integer)
 getDevHash secret timestamp =

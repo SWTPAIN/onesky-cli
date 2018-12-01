@@ -33,6 +33,8 @@ library:
     - base64-bytestring
     - lens-aeson
     - text
+    - aeson
+    - containers
 
 executables:
   oneup-cli:
