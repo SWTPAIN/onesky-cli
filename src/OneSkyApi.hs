@@ -1,8 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+-- {-# LANGUAGE ExtendedDefaultRules #-}
+
 
 module OneSkyApi
     ( getFiles
+    , ProjectId(..)
     , Credential(..)
+    , getDevHash
     )
 where
 
@@ -14,8 +18,11 @@ import qualified Data.ByteString.Char8         as B8
                                                 , unpack
                                                 )
 import           Data.Time.Clock.POSIX          ( getPOSIXTime )
-import           Data.Text                     as Text
-                                                ( unpack )
+import qualified Data.Text                     as Text
+                                                ( unpack
+                                                , pack
+                                                )
+
 import qualified Data.ByteString.Lazy.Char8    as BL8
                                                 ( pack
                                                 , unpack
@@ -29,33 +36,42 @@ import           Data.Aeson.Lens                ( _String
                                                 )
 import qualified Network.Wreq                  as Wreq
 
+-- default (Text.Text)
+
+newtype ProjectId = ProjectId String deriving Show
+
 apiBaseUrl = "https://platform.api.onesky.io/1"
 
 
 data Credential = Credential { apiKey :: String, secret :: String }
 
-getFiles :: Credential -> String -> IO String
-getFiles credential fileName = do
-    r <- Wreq.getWith opts "http://httpbin.org/get"
+getFiles :: Credential -> ProjectId -> String -> IO String
+getFiles (Credential apiKey secret) (ProjectId projectId) fileName = do
+    putStrLn requestUrl
+    (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
+    putStrLn devHash
+    putStrLn $ show timestamp
+    r <- Wreq.getWith (getOpts devHash timestamp) requestUrl
     return $ Text.unpack $ r ^. url
   where
-    opts = Wreq.defaults & Wreq.param "foo" .~ ["bar", "quux"]
-    url  = Wreq.responseBody . key "url" . _String
+    requestUrl =
+        apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
+    getOpts = \devHash timestamp ->
+        Wreq.defaults
+            &  Wreq.params
+            .~ [ ("api_key"         , Text.pack apiKey)
+               , ("source_file_name", Text.pack fileName)
+               , ("dev_hash"        , Text.pack devHash)
+               , ("timestamp"       , Text.pack $ show timestamp)
+               ]
+    url = Wreq.responseBody . key "url" . _String
 
--- "https://platform.api.onesky.io/1/projects/142139/translations/multilingual?api_key=BD34rjKY6Jmbm3OQcmvuWdVorWLdxu3Z&source_file_name=bookmarks.json&file_format=I18NEXT_MULTILINGUAL_JSON"
-getDevHash :: String -> Int -> (String, Int)
+getDevHash :: String -> Integer -> (String, Integer)
 getDevHash secret timestamp =
-    (show $ md5Digest $ secret <> (show timestamp), timestamp)
+    (md5Digest $ (show timestamp) <> secret, timestamp)
 
 md5Digest :: String -> String
-md5Digest = BL8.pack >>> md5 >>> md5DigestBytes >>> Base64.encode >>> B8.unpack
+md5Digest = BL8.pack >>> md5 >>> show
 
 getCurrentTimestamp :: IO Integer
 getCurrentTimestamp = round `fmap` getPOSIXTime
--- function _getDevHash (secret) {
---   var timestamp = Math.floor(Date.now() / 1000);
---   return {
---     devHash: md5(timestamp + secret),
---     timestamp: timestamp
---   };
--- }

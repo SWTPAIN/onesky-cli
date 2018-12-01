@@ -1,5 +1,6 @@
 module Lib
-    ( readEnv
+    ( readEnv,
+        Config(..)
     )
 where
 
@@ -16,5 +17,5 @@ readEnv :: IO (Maybe Config)
 readEnv = do
     projectId <- lookupEnv "ONESKY_PROJECT_ID"
     apiKey    <- lookupEnv "ONESKY_API_KEY"
-    password  <- lookupEnv "ONESKY_SECRET_KEY"
-    return $ Config <$> projectId <*> password <*> password
+    secretKey  <- lookupEnv "ONESKY_SECRET_KEY"
+    return $ Config <$> projectId <*> apiKey <*> secretKey

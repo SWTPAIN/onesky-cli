@@ -10,6 +10,7 @@ import           Data.Text                     as Text
 import           Paths_oneup_cli                ( version )
 import           Data.Version                   ( showVersion )
 import qualified OneSkyApi
+import           System.Exit                    ( exitFailure )
 
 -- return apiAddress + '/1/projects/' + options.projectId + '/translations/multilingual?' + queryString.stringify({
 --   api_key: options.apiKey,
@@ -26,9 +27,9 @@ parseVersion :: Turtle.Parser (IO ())
 parseVersion =
   (subcommand "version" "Show the Awesome tool version" (pure version'))
 
-parseDownload :: Turtle.Parser (IO ())
-parseDownload = fmap
-  downloadTranslation
+parseDownload :: Config -> Turtle.Parser (IO ())
+parseDownload config = fmap
+  (downloadTranslation config) $
   (subcommand "download" "Download Translation from Onesky API" downloadArgs)
 
 downloadArgs :: Turtle.Parser (Turtle.Text, Bool, Maybe Turtle.Text)
@@ -41,25 +42,36 @@ downloadArgs =
           (optText "language" 'l' "The language of translation to be downloaded"
           )
 
-downloadTranslation :: (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
-downloadTranslation (directory, True, Nothing) =
-  OneSkyApi.getFiles (OneSkyApi.Credential "apiKey" "secret")
-                     (Text.unpack directory)
-    >>= putStrLn
-downloadTranslation (directory, True, Just _) =
+downloadTranslation :: Config -> (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
+downloadTranslation (Config oneskyProjectId oneskyApiKey oneskySecretKey ) (directory, True, Nothing) = do
+  files <- OneSkyApi.getFiles (OneSkyApi.Credential oneskyApiKey oneskySecretKey) (OneSkyApi.ProjectId oneskyProjectId)
+                              (Text.unpack directory)
+  putStrLn files
+  return ()
+
+downloadTranslation _ (directory, True, Just _) =
   putStrLn "You can only either specific one lang or all langauges"
-downloadTranslation (directory, False, Just lang) =
+downloadTranslation _ (directory, False, Just lang) =
   putStrLn "downloading one translation"
-downloadTranslation (directory, False, Nothing) =
+downloadTranslation _ (directory, False, Nothing) =
   putStrLn "Please speciifc one language or all langauge"
 
-parser :: Turtle.Parser (IO ())
-parser = parseVersion <|> parseDownload
+parser :: Config -> Turtle.Parser (IO ())
+parser config = parseVersion <|> parseDownload config
+
+-- withAuth :: (Auth -> IO ()) -> IO ()
+-- withAuth action = do
+--   mtoken <- lookupEnv "GITHUB_TOKEN"
+--   case mtoken of
+--     Nothing    -> pendingWith "no GITHUB_TOKEN"
+--     Just token -> action (OAuth $ fromString token)
 
 main :: IO ()
 main = do
-  config <- readEnv
-  join
-    (Turtle.options "A command-line tool for managing translation in Onesky"
-                    parser
-    )
+  mconfig <- readEnv
+  case mconfig of
+    Nothing     -> putStrLn "Cannot create config." >> exitFailure
+    Just config -> join
+      (Turtle.options "A command-line tool for managing translation in Onesky"
+                      $ parser config
+      )
