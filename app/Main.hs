@@ -3,7 +3,10 @@
 module Main where
 
 -- import Data.Encoding.UTF8
--- import Prelude hiding (readFile, writeFile)
+import           Data.ByteString                ( writeFile )
+import           Prelude                 hiding ( readFile
+                                                , writeFile
+                                                )
 import           Data.Maybe                     ( fromMaybe )
 import           Lib
 import           System.Environment
@@ -44,7 +47,6 @@ downloadTranslation (Config oneskyProjectId oneskyApiKey oneskySecretKey) (direc
       (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
       (OneSkyApi.ProjectId oneskyProjectId)
       (Text.unpack directory)
-    putStrLn files
     writeFile "filename.json" files
     return ()
 
