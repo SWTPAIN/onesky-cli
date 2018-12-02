@@ -13,8 +13,8 @@ where
 
 import           Control.Category               ( (>>>) )
 import           Control.Applicative            ( (<|>) )
-import qualified Data.ByteString.Base64        as Base64
-                                                ( encode )
+-- import qualified Data.ByteString.Base64        as Base64
+--                                                 ( encode )
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Lazy          as LBS
 import qualified Data.ByteString.Char8         as B8
@@ -58,7 +58,7 @@ import qualified Data.Aeson                    as AE
 import qualified Data.Aeson.Types              as AET
 import qualified Data.Traversable              as Traversable
 import qualified Data.HashMap.Strict           as SHM
--- import qualified Data.HashMap.Lazy as HMap
+import qualified Data.HashMap.Lazy             as Hm
 
 -- default (Text.Text)
 
@@ -72,25 +72,14 @@ data Credential = Credential { apiKey :: String, secret :: String }
 newtype Translations = Translations (Map String String) deriving Show
 
 
-translation1 :: Value -> AET.Parser String
-translation1 = withObject
-    "translation"
-    (\translationObject -> fmap
-        (B8.unpack . LBS.toStrict . encode)
-        ((translationObject .: "translation") :: AET.Parser (Map String String))
-    )
-
-translation2 :: Value -> AET.Parser String
-translation2 = withObject
-    "translation"
-    (\translationObject -> fmap
-        (B8.unpack . LBS.toStrict . encode)
-        ((translationObject .: "translation") :: AET.Parser (Map String [String]))
-    )
-
-
 translation :: Value -> AET.Parser String
-translation v = (translation1 v)
+translation = withObject
+    "translation"
+    (\translationObject -> fmap
+        (B8.unpack . LBS.toStrict . AE.encode)
+        (translationObject .: "translation" :: AET.Parser AET.Object)
+    )
+
 
 
 instance FromJSON Translations where
