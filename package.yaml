@@ -35,6 +35,8 @@ library:
     - aeson
     - containers
     - http-conduit
+    - hashmap
+    - unordered-containers
 
 executables:
   oneup-cli:
@@ -49,6 +51,8 @@ executables:
       - text
       - turtle
       - bytestring
+      - containers
+      - aeson
 
 tests:
   oneup-cli-test:

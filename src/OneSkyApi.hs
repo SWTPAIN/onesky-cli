@@ -7,10 +7,12 @@ module OneSkyApi
     , ProjectId(..)
     , Credential(..)
     , getDevHash
+    , Translations(..)
     )
 where
 
 import           Control.Category               ( (>>>) )
+import           Control.Applicative            ( (<|>) )
 import qualified Data.ByteString.Base64        as Base64
                                                 ( encode )
 import qualified Data.ByteString               as S
@@ -22,11 +24,12 @@ import qualified Data.ByteString.Char8         as B8
                                                 )
 import qualified Data.Text.Lazy.Encoding       as TLE
 import           Data.Time.Clock.POSIX          ( getPOSIXTime )
+import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
                                                 ( unpack
                                                 , pack
                                                 )
-
+import           Data.Foldable                  ( asum )
 import qualified Data.ByteString.Lazy.Char8    as BL8
                                                 ( pack
                                                 , unpack
@@ -38,13 +41,24 @@ import           Network.HTTP.Simple            ( httpLBS
                                                 , parseRequest_
                                                 , getResponseBody
                                                 , setRequestHeaders
+                                                , httpJSON
+                                                , Response
                                                 )
 import           Data.Digest.Pure.MD5
 import           Control.Lens
+import           Control.Monad                  ( mzero )
 import           Data.Aeson.Lens                ( _String
                                                 , key
                                                 )
 import qualified Data.ByteString               as B
+import           Data.Map                       ( Map )
+import           Data.Map                      as Map
+import           Data.Aeson
+import qualified Data.Aeson                    as AE
+import qualified Data.Aeson.Types              as AET
+import qualified Data.Traversable              as Traversable
+import qualified Data.HashMap.Strict           as SHM
+-- import qualified Data.HashMap.Lazy as HMap
 
 -- default (Text.Text)
 
@@ -55,18 +69,46 @@ apiBaseUrl = "https://platform.api.onesky.io/1"
 
 data Credential = Credential { apiKey :: String, secret :: String }
 
-getFiles :: Credential -> ProjectId -> String -> IO LBS.ByteString
+newtype Translations = Translations (Map String String) deriving Show
+
+
+translation1 :: Value -> AET.Parser String
+translation1 = withObject
+    "translation"
+    (\translationObject -> fmap
+        (B8.unpack . LBS.toStrict . encode)
+        ((translationObject .: "translation") :: AET.Parser (Map String String))
+    )
+
+translation2 :: Value -> AET.Parser String
+translation2 = withObject
+    "translation"
+    (\translationObject -> fmap
+        (B8.unpack . LBS.toStrict . encode)
+        ((translationObject .: "translation") :: AET.Parser (Map String [String]))
+    )
+
+
+translation :: Value -> AET.Parser String
+translation v = (translation1 v)
+
+
+instance FromJSON Translations where
+    parseJSON (AE.Object obj) =
+        Translations <$> Map.fromList <$> fmap (\(x, y) -> (Text.unpack x, y)) <$> SHM.toList <$> Traversable.mapM translation obj
+    parseJSON _ = mzero
+
+getFiles :: Credential -> ProjectId -> String -> IO Translations
 getFiles (Credential apiKey secret) (ProjectId projectId) fileName = do
     (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
-    putStrLn requestUrl
-    putStrLn devHash
-    print timestamp
-    resposne <- httpLBS (getRequest devHash timestamp)
+    resposne             <-
+        httpJSON (getRequest devHash timestamp) :: IO (Response Translations)
     -- LBS.putStr $ getResponseBody resposne
-    return $ getResponseBody resposne
+    return $ (getResponseBody resposne)
   where
     requestUrl =
-        apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
+        -- apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
+        "http://localhost:3000/translations"
     getRequest devHash timestamp =
         (setRequestQueryString
                 ([ ("api_key"         , Just $ B8.pack apiKey)
