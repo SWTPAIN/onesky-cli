@@ -2,14 +2,9 @@
 
 module Main where
 
--- import Data.Encoding.UTF8
--- import           Data.ByteString                ( writeFile )
-import qualified Data.Text.Encoding            as TextEncoding
 import qualified Data.Text.IO                  as TextIO
-import           Data.Maybe                     ( fromMaybe )
 import           Lib
 import           System.Environment
-import qualified Data.ByteString               as B
 import qualified Data.ByteString.Lazy          as LBS
 import           Turtle
 import           Data.Text                     as Text
@@ -17,8 +12,7 @@ import           Paths_oneup_cli                ( version )
 import           Data.Version                   ( showVersion )
 import qualified OneSkyApi
 import           System.Exit                    ( exitFailure )
-import           Data.Foldable                  ( for_ )
-import           Data.Map                       ( toList )
+import qualified Data.Map                      as Map
 
 version' :: IO ()
 version' = putStrLn (showVersion version)
@@ -50,7 +44,7 @@ downloadTranslation (Config oneskyProjectId oneskyApiKey oneskySecretKey) (direc
       (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
       (OneSkyApi.ProjectId oneskyProjectId)
       (Text.unpack directory)
-    mapM_ writeTranslation (toList translations)
+    mapM_ writeTranslation (Map.toList translations)
 
 downloadTranslation _ (directory, True, Just _) =
   putStrLn "You can only either specific one lang or all langauges"
@@ -59,8 +53,8 @@ downloadTranslation _ (directory, False, Just lang) =
 downloadTranslation _ (directory, False, Nothing) =
   putStrLn "Please speciifc one language or all langauge"
 
-writeTranslation :: (String, String) -> IO ()
-writeTranslation (lang, translation) = writeFile filename translation
+writeTranslation :: (String, Text) -> IO ()
+writeTranslation (lang, translation) = TextIO.writeFile filename translation
   where filename = lang <> ".json"
 
 parser :: Config -> Turtle.Parser (IO ())

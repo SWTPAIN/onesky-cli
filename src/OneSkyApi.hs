@@ -1,6 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
--- {-# LANGUAGE ExtendedDefaultRules #-}
-
 
 module OneSkyApi
     ( getFiles
@@ -12,9 +10,6 @@ module OneSkyApi
 where
 
 import           Control.Category               ( (>>>) )
-import           Control.Applicative            ( (<|>) )
--- import qualified Data.ByteString.Base64        as Base64
---                                                 ( encode )
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Lazy          as LBS
 import qualified Data.ByteString.Char8         as B8
@@ -31,13 +26,8 @@ import qualified Data.Text                     as Text
                                                 )
 import           Data.Foldable                  ( asum )
 import qualified Data.ByteString.Lazy.Char8    as BL8
-                                                ( pack
-                                                , unpack
-                                                , toStrict
-                                                , fromStrict
-                                                )
-import           Network.HTTP.Simple            ( httpLBS
-                                                , setRequestQueryString
+                                                ( pack )
+import           Network.HTTP.Simple            ( setRequestQueryString
                                                 , parseRequest_
                                                 , getResponseBody
                                                 , setRequestHeaders
@@ -58,9 +48,8 @@ import qualified Data.Aeson                    as AE
 import qualified Data.Aeson.Types              as AET
 import qualified Data.Traversable              as Traversable
 import qualified Data.HashMap.Strict           as SHM
-import qualified Data.HashMap.Lazy             as Hm
+import           Data.Text.Encoding             ( decodeUtf8 )
 
--- default (Text.Text)
 
 newtype ProjectId = ProjectId String deriving Show
 
@@ -69,17 +58,16 @@ apiBaseUrl = "https://platform.api.onesky.io/1"
 
 data Credential = Credential { apiKey :: String, secret :: String }
 
-newtype Translations = Translations (Map String String) deriving Show
+newtype Translations = Translations (Map String Text) deriving Show
 
 
-translation :: Value -> AET.Parser String
+translation :: Value -> AET.Parser Text
 translation = withObject
     "translation"
     (\translationObject -> fmap
-        (B8.unpack . LBS.toStrict . AE.encode)
+        (decodeUtf8 . LBS.toStrict . AE.encode)
         (translationObject .: "translation" :: AET.Parser AET.Object)
     )
-
 
 
 instance FromJSON Translations where
@@ -92,12 +80,11 @@ getFiles (Credential apiKey secret) (ProjectId projectId) fileName = do
     (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
     resposne             <-
         httpJSON (getRequest devHash timestamp) :: IO (Response Translations)
-    -- LBS.putStr $ getResponseBody resposne
     return $ (getResponseBody resposne)
   where
     requestUrl =
-        -- apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
-        "http://localhost:3000/translations"
+        apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
+        -- "http://localhost:3000/translations"
     getRequest devHash timestamp =
         (setRequestQueryString
                 ([ ("api_key"         , Just $ B8.pack apiKey)
