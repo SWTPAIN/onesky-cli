@@ -3,3 +3,6 @@ oneup-cli.cabal
 *~
 
 .env
+
+.DS_STORE
+tmp

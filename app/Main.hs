@@ -3,13 +3,18 @@
 module Main where
 
 -- import Data.Encoding.UTF8
-import           Data.ByteString                ( writeFile )
+-- import           Data.ByteString                ( writeFile )
 import           Prelude                 hiding ( readFile
                                                 , writeFile
                                                 )
+import           Data.Text.IO                   ( writeFile )
+import qualified Data.Text.Encoding            as TextEncoding
+import qualified Data.Text.IO                  as TextIO
 import           Data.Maybe                     ( fromMaybe )
 import           Lib
 import           System.Environment
+import qualified Data.ByteString               as B
+import qualified Data.ByteString.Lazy          as LBS
 import           Turtle
 import           Data.Text                     as Text
 import           Paths_oneup_cli                ( version )
@@ -47,7 +52,7 @@ downloadTranslation (Config oneskyProjectId oneskyApiKey oneskySecretKey) (direc
       (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
       (OneSkyApi.ProjectId oneskyProjectId)
       (Text.unpack directory)
-    writeFile "filename.json" files
+    LBS.writeFile "filename.json" files
     return ()
 
 downloadTranslation _ (directory, True, Just _) =
