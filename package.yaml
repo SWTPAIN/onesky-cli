@@ -37,6 +37,7 @@ library:
     - http-conduit
     - hashmap
     - unordered-containers
+    - directory
 
 executables:
   oneup-cli:

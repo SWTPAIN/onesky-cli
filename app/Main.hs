@@ -23,7 +23,7 @@ parseVersion =
 
 parseDownload :: Config -> Turtle.Parser (IO ())
 parseDownload config =
-  fmap (downloadTranslation config)
+  fmap (downloadTranslations config)
     $ (subcommand "download" "Download Translation from Onesky API" downloadArgs
       )
 
@@ -37,25 +37,30 @@ downloadArgs =
           (optText "language" 'l' "The language of translation to be downloaded"
           )
 
-downloadTranslation :: Config -> (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
-downloadTranslation (Config oneskyProjectId oneskyApiKey oneskySecretKey) (directory, True, Nothing)
+downloadTranslations
+  :: Config -> (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
+downloadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (directory, True, Nothing)
   = do
-    OneSkyApi.Translations translations <- OneSkyApi.getFiles
+    translations <- OneSkyApi.getFiles
       (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
       (OneSkyApi.ProjectId oneskyProjectId)
-      (Text.unpack directory)
-    mapM_ writeTranslation (Map.toList translations)
-    putStrLn "Finish downloading translations"
-
-downloadTranslation _ (directory, True, Just _) =
+      [Text.unpack directory]
+    mapM writeTranslation translations
+    putStrLn "Finish Downloading transactions"
+downloadTranslations _ (directory, True, Just _) =
   putStrLn "You can only either specific one lang or all langauges"
-downloadTranslation _ (directory, False, Just lang) =
+downloadTranslations _ (directory, False, Just lang) =
   putStrLn "downloading one translation"
-downloadTranslation _ (directory, False, Nothing) =
+downloadTranslations _ (directory, False, Nothing) =
   putStrLn "Please speciifc one language or all langauge"
 
-writeTranslation :: (String, Text) -> IO ()
-writeTranslation (lang, translation) = TextIO.writeFile filename translation
+writeTranslation :: OneSkyApi.Translations -> IO ()
+writeTranslation (OneSkyApi.Translations translations) =
+  mapM_ writeLangTranslation (Map.toList translations)
+
+writeLangTranslation :: (String, Text) -> IO ()
+writeLangTranslation (lang, translation) = TextIO.writeFile filename
+                                                            translation
   where filename = lang <> ".json"
 
 parser :: Config -> Turtle.Parser (IO ())

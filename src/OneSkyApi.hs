@@ -75,8 +75,11 @@ instance FromJSON Translations where
         Translations <$> Map.fromList <$> fmap (\(x, y) -> (Text.unpack x, y)) <$> SHM.toList <$> Traversable.mapM translation obj
     parseJSON _ = mzero
 
-getFiles :: Credential -> ProjectId -> String -> IO Translations
-getFiles (Credential apiKey secret) (ProjectId projectId) fileName = do
+getFiles :: Credential -> ProjectId -> [String] -> IO [Translations]
+getFiles credential projectId = mapM (getFile credential projectId)
+
+getFile :: Credential -> ProjectId -> String -> IO Translations
+getFile (Credential apiKey secret) (ProjectId projectId) fileName = do
     (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
     resposne             <-
         httpJSON (getRequest devHash timestamp) :: IO (Response Translations)

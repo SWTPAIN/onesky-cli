@@ -1,6 +1,6 @@
 module Lib
-    ( readEnv,
-        Config(..)
+    ( readEnv
+    , Config(..)
     )
 where
 
@@ -13,9 +13,10 @@ data Config =
         , oneskySecretKet :: String
         } deriving (Show)
 
+
 readEnv :: IO (Maybe Config)
 readEnv = do
     projectId <- lookupEnv "ONESKY_PROJECT_ID"
     apiKey    <- lookupEnv "ONESKY_API_KEY"
-    secretKey  <- lookupEnv "ONESKY_SECRET_KEY"
+    secretKey <- lookupEnv "ONESKY_SECRET_KEY"
     return $ Config <$> projectId <*> apiKey <*> secretKey
