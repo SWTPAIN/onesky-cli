@@ -45,6 +45,7 @@ downloadTranslation (Config oneskyProjectId oneskyApiKey oneskySecretKey) (direc
       (OneSkyApi.ProjectId oneskyProjectId)
       (Text.unpack directory)
     mapM_ writeTranslation (Map.toList translations)
+    putStrLn "Finish downloading translations"
 
 downloadTranslation _ (directory, True, Just _) =
   putStrLn "You can only either specific one lang or all langauges"
@@ -64,7 +65,7 @@ main :: IO ()
 main = do
   mconfig <- readEnv
   case mconfig of
-    Nothing     -> putStrLn "Cannot create config." >> exitFailure
+    Nothing     -> putStrLn "Cannot read config." >> exitFailure
     Just config -> join
       ( Turtle.options "A command-line tool for managing translation in Onesky"
       $ parser config
