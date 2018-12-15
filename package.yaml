@@ -33,11 +33,11 @@ library:
     - lens-aeson
     - text
     - aeson
+    - aeson-pretty
     - containers
     - http-conduit
     - hashmap
     - unordered-containers
-    - directory
 
 executables:
   oneup-cli:
@@ -54,6 +54,7 @@ executables:
       - bytestring
       - containers
       - aeson
+      - directory
 
 tests:
   oneup-cli-test:

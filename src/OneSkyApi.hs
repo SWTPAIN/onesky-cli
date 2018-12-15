@@ -5,7 +5,8 @@ module OneSkyApi
     , ProjectId(..)
     , Credential(..)
     , getDevHash
-    , Translations(..)
+    , FileTranslation(..)
+    , TranslationContent(..)
     )
 where
 
@@ -44,6 +45,7 @@ import qualified Data.ByteString               as B
 import           Data.Map                       ( Map )
 import           Data.Map                      as Map
 import           Data.Aeson
+import Data.Aeson.Encode.Pretty                (encodePretty)
 import qualified Data.Aeson                    as AE
 import qualified Data.Aeson.Types              as AET
 import qualified Data.Traversable              as Traversable
@@ -58,32 +60,37 @@ apiBaseUrl = "https://platform.api.onesky.io/1"
 
 data Credential = Credential { apiKey :: String, secret :: String }
 
-newtype Translations = Translations (Map String Text) deriving Show
+data FileTranslation = FileTranslation {
+    fileName :: String,
+    translationContent :: TranslationContent
+}
+
+newtype TranslationContent = TranslationContent (Map String Text) deriving Show
 
 
 translation :: Value -> AET.Parser Text
 translation = withObject
     "translation"
     (\translationObject -> fmap
-        (decodeUtf8 . LBS.toStrict . AE.encode)
+        (decodeUtf8 . LBS.toStrict . encodePretty)
         (translationObject .: "translation" :: AET.Parser AET.Object)
     )
 
 
-instance FromJSON Translations where
+instance FromJSON TranslationContent where
     parseJSON (AE.Object obj) =
-        Translations <$> Map.fromList <$> fmap (\(x, y) -> (Text.unpack x, y)) <$> SHM.toList <$> Traversable.mapM translation obj
+        TranslationContent <$> Map.fromList <$> fmap (\(x, y) -> (Text.unpack x, y)) <$> SHM.toList <$> Traversable.mapM translation obj
     parseJSON _ = mzero
 
-getFiles :: Credential -> ProjectId -> [String] -> IO [Translations]
+getFiles :: Credential -> ProjectId -> [String] -> IO [FileTranslation]
 getFiles credential projectId = mapM (getFile credential projectId)
 
-getFile :: Credential -> ProjectId -> String -> IO Translations
+getFile :: Credential -> ProjectId -> String -> IO FileTranslation
 getFile (Credential apiKey secret) (ProjectId projectId) fileName = do
     (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
     resposne             <-
-        httpJSON (getRequest devHash timestamp) :: IO (Response Translations)
-    return $ (getResponseBody resposne)
+        httpJSON (getRequest devHash timestamp) :: IO (Response TranslationContent)
+    return $ (FileTranslation fileName (getResponseBody resposne))
   where
     requestUrl =
         apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
