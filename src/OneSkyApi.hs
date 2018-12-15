@@ -45,13 +45,14 @@ import qualified Data.ByteString               as B
 import           Data.Map                       ( Map )
 import           Data.Map                      as Map
 import           Data.Aeson
-import Data.Aeson.Encode.Pretty                (encodePretty)
+import           Data.Aeson.Encode.Pretty       ( encodePretty )
 import qualified Data.Aeson                    as AE
 import qualified Data.Aeson.Types              as AET
 import qualified Data.Traversable              as Traversable
 import qualified Data.HashMap.Strict           as SHM
 import           Data.Text.Encoding             ( decodeUtf8 )
-
+import           Control.Concurrent             ( forkIO )
+import           Control.Concurrent.Async       ( mapConcurrently )
 
 newtype ProjectId = ProjectId String deriving Show
 
@@ -83,13 +84,14 @@ instance FromJSON TranslationContent where
     parseJSON _ = mzero
 
 getFiles :: Credential -> ProjectId -> [String] -> IO [FileTranslation]
-getFiles credential projectId = mapM (getFile credential projectId)
+getFiles credential projectId = mapConcurrently (getFile credential projectId)
 
 getFile :: Credential -> ProjectId -> String -> IO FileTranslation
 getFile (Credential apiKey secret) (ProjectId projectId) fileName = do
     (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
     resposne             <-
-        httpJSON (getRequest devHash timestamp) :: IO (Response TranslationContent)
+        httpJSON (getRequest devHash timestamp) :: IO
+            (Response TranslationContent)
     return $ (FileTranslation fileName (getResponseBody resposne))
   where
     requestUrl =

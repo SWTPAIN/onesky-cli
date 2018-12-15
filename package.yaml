@@ -38,6 +38,7 @@ library:
     - http-conduit
     - hashmap
     - unordered-containers
+    - async
 
 executables:
   oneup-cli:
