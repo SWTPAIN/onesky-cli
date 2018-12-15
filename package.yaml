@@ -39,6 +39,7 @@ library:
     - hashmap
     - unordered-containers
     - async
+    - http-client
 
 executables:
   oneup-cli:

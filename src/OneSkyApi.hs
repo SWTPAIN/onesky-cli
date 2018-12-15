@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module OneSkyApi
-    ( getFiles
-    , ProjectId(..)
-    , Credential(..)
-    , getDevHash
-    , FileTranslation(..)
-    , TranslationContent(..)
-    )
+  ( getFiles
+  , ProjectId(..)
+  , Credential(..)
+  , getDevHash
+  , FileTranslation(..)
+  , TranslationContent(..)
+  )
 where
 
 import           Control.Category               ( (>>>) )
@@ -53,17 +53,18 @@ import qualified Data.HashMap.Strict           as SHM
 import           Data.Text.Encoding             ( decodeUtf8 )
 import           Control.Concurrent             ( forkIO )
 import           Control.Concurrent.Async       ( mapConcurrently )
+import           Network.HTTP.Client
+import           Network.HTTP.Client.MultipartFormData
 
 newtype ProjectId = ProjectId String deriving Show
 
 apiBaseUrl = "https://platform.api.onesky.io/1"
 
-
 data Credential = Credential { apiKey :: String, secret :: String }
 
 data FileTranslation = FileTranslation {
-    fileName :: String,
-    translationContent :: TranslationContent
+        fileName :: String,
+        translationContent :: TranslationContent
 }
 
 newtype TranslationContent = TranslationContent (Map String Text) deriving Show
@@ -71,48 +72,71 @@ newtype TranslationContent = TranslationContent (Map String Text) deriving Show
 
 translation :: Value -> AET.Parser Text
 translation = withObject
-    "translation"
-    (\translationObject -> fmap
-        (decodeUtf8 . LBS.toStrict . encodePretty)
-        (translationObject .: "translation" :: AET.Parser AET.Object)
-    )
-
+  "translation"
+  (\translationObject -> fmap
+    (decodeUtf8 . LBS.toStrict . encodePretty)
+    (translationObject .: "translation" :: AET.Parser AET.Object)
+  )
 
 instance FromJSON TranslationContent where
-    parseJSON (AE.Object obj) =
-        TranslationContent <$> Map.fromList <$> fmap (\(x, y) -> (Text.unpack x, y)) <$> SHM.toList <$> Traversable.mapM translation obj
-    parseJSON _ = mzero
+        parseJSON (AE.Object obj) = TranslationContent <$> Map.fromList <$> fmap (\(x, y) -> (Text.unpack x, y)) <$> SHM.toList <$> Traversable.mapM translation obj
+        parseJSON _ = mzero
 
 getFiles :: Credential -> ProjectId -> [String] -> IO [FileTranslation]
 getFiles credential projectId = mapConcurrently (getFile credential projectId)
 
+putFile :: Credential -> ProjectId -> String -> IO ()
+putFile (Credential apiKey secret) (ProjectId projectId) fileName = do
+  m                    <- withManager defaultManagerSettings
+  (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
+  httpLbs m (getRequest devHash timestamp)
+ where
+  requestUrl  = apiBaseUrl <> "/projects/" <> projectId <> "/files"
+  initRequest = parseRequest requestUrl
+  request =
+    (formDataBody
+      [ partBS "name" "file"
+      , partFileSource "file" fileName
+      , partFileRequestBody "file" fileName $ RequestBodyLBS $ "ooooo"
+      ]
+      initRequest { method         = "POST"
+                  , requestHeaders = [("Content-Type", "application/json")]
+                  }
+    )
+  getRequest devHash timestamp =
+    setQueryString
+        [ ("api_key"    , Just $ B8.pack apiKey)
+        , ("dev_hash"   , Just $ B8.pack devHash)
+        , ("timestamp"  , (Just $ B8.pack $ show timestamp))
+        , ("file_format", Just $ B8.pack "I18NEXT_MULTILINGUAL_JSON")
+        ]
+      >>= request
+
 getFile :: Credential -> ProjectId -> String -> IO FileTranslation
 getFile (Credential apiKey secret) (ProjectId projectId) fileName = do
-    (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
-    resposne             <-
-        httpJSON (getRequest devHash timestamp) :: IO
-            (Response TranslationContent)
-    return $ (FileTranslation fileName (getResponseBody resposne))
-  where
-    requestUrl =
-        apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
-        -- "http://localhost:3000/translations"
-    getRequest devHash timestamp =
-        (setRequestQueryString
-                ([ ("api_key"         , Just $ B8.pack apiKey)
-                 , ("source_file_name", Just $ B8.pack fileName)
-                 , ("dev_hash"        , Just $ B8.pack devHash)
-                 , ("timestamp"       , (Just $ B8.pack $ show timestamp))
-                 , ("file_format", Just $ B8.pack "I18NEXT_MULTILINGUAL_JSON")
-                 ]
-                )
-            )
-            . (setRequestHeaders [("Content-Type", "application/json")])
-            $ parseRequest_ requestUrl
+  (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
+  resposne             <-
+    httpJSON (getRequest devHash timestamp) :: IO (Response TranslationContent)
+  return $ (FileTranslation fileName (getResponseBody resposne))
+ where
+  requestUrl =
+    apiBaseUrl <> "/projects/" <> projectId <> "/translations/multilingual"
+  getRequest devHash timestamp =
+    (setRequestQueryString
+        ([ ("api_key"         , Just $ B8.pack apiKey)
+         , ("source_file_name", Just $ B8.pack fileName)
+         , ("dev_hash"        , Just $ B8.pack devHash)
+         , ("timestamp"       , (Just $ B8.pack $ show timestamp))
+         , ("file_format"     , Just $ B8.pack "I18NEXT_MULTILINGUAL_JSON")
+         ]
+        )
+      )
+      . (setRequestHeaders [("Content-Type", "application/json")])
+      $ parseRequest_ requestUrl
 
 getDevHash :: String -> Integer -> (String, Integer)
 getDevHash secret timestamp =
-    (md5Digest $ (show timestamp) <> secret, timestamp)
+  (md5Digest $ (show timestamp) <> secret, timestamp)
 
 md5Digest :: String -> String
 md5Digest = BL8.pack >>> md5 >>> show

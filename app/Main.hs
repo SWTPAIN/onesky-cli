@@ -32,6 +32,22 @@ parseDownload config =
     $ (subcommand "download" "Download Translation from Onesky API" downloadArgs
       )
 
+parseUpload:: Config -> Turtle.Parser (IO ())
+parseUpload config =
+  fmap (uploadTranslations config)
+    $ (subcommand "upload" "Upload Translation from Onesky API" uploadArgs
+      )
+
+uploadArgs :: Turtle.Parser (Turtle.Text, Bool, Maybe Turtle.Text)
+uploadArgs =
+  (,,)
+    <$> (optText "directory" 'd' "Directory for translation to be uploaded "
+        )
+    <*> (switch "all" 'a' "Is Uploading all languages")
+    <*> optional
+          (optText "language" 'l' "The language of translation to be uploaded"
+          )
+
 downloadArgs :: Turtle.Parser (Turtle.Text, Bool, Maybe Turtle.Text)
 downloadArgs =
   (,,)
@@ -65,6 +81,29 @@ downloadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (dire
   getFileNames dirName =
     getDirectoryContents dirName >>= filterM (fmap not . doesDirectoryExist)
 
+uploadTranslations
+  :: Config -> (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
+uploadTranslations _ (directory, True, Just _) =
+  putStrLn "You can only either specific one lang or all langauges"
+uploadTranslations _ (directory, False, Just lang) =
+  putStrLn "uploading one translation"
+uploadTranslations _ (directory, False, Nothing) =
+  putStrLn "Please speciifc one language or all langauge"
+uploadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (directory, True, Nothing)
+  = do
+    fileNames    <- getFileNames sourceDirName
+    translations <- OneSkyApi.getFiles
+      (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
+      (OneSkyApi.ProjectId oneskyProjectId)
+      fileNames
+    mapM (writeTranslation dirName) translations
+    putStrLn "Finish Downloading transactions"
+  where
+  dirName       = (Text.unpack directory)
+  sourceDirName = dirName <> "/en"
+  getFileNames dirName =
+    getDirectoryContents dirName >>= filterM (fmap not . doesDirectoryExist)
+
 writeTranslation :: String -> OneSkyApi.FileTranslation -> IO ()
 writeTranslation dirName (OneSkyApi.FileTranslation fileName (OneSkyApi.TranslationContent translationContent))
   = mapM_ (writeLangTranslation dirName fileName)
@@ -79,7 +118,7 @@ writeLangTranslation targetDir filename (lang, translation) = do
     filePath = directory <> "/" <> filename
 
 parser :: Config -> Turtle.Parser (IO ())
-parser config = parseVersion <|> parseDownload config
+parser config = parseVersion <|> parseDownload <|> parseUpload config
 
 main :: IO ()
 main = do
