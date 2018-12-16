@@ -2,6 +2,7 @@
 
 module OneSkyApi
   ( getFiles
+  , putFiles
   , ProjectId(..)
   , Credential(..)
   , getDevHash
@@ -55,6 +56,9 @@ import           Control.Concurrent             ( forkIO )
 import           Control.Concurrent.Async       ( mapConcurrently )
 import           Network.HTTP.Client
 import           Network.HTTP.Client.MultipartFormData
+import           Network.HTTP.Types.Status      ( status201 )
+import           Network.HTTP.Client.TLS        ( tlsManagerSettings )
+
 
 newtype ProjectId = ProjectId String deriving Show
 
@@ -85,32 +89,37 @@ instance FromJSON TranslationContent where
 getFiles :: Credential -> ProjectId -> [String] -> IO [FileTranslation]
 getFiles credential projectId = mapConcurrently (getFile credential projectId)
 
-putFile :: Credential -> ProjectId -> String -> IO ()
-putFile (Credential apiKey secret) (ProjectId projectId) fileName = do
-  m                    <- withManager defaultManagerSettings
+putFiles :: Credential -> ProjectId -> [String] -> IO [Bool]
+putFiles credential projectId = mapConcurrently (putFile credential projectId)
+
+putFile :: Credential -> ProjectId -> String -> IO (Bool)
+putFile (Credential apiKey secret) (ProjectId projectId) filePath = do
+  m                    <- newManager tlsManagerSettings
   (devHash, timestamp) <- fmap (getDevHash secret) getCurrentTimestamp
-  httpLbs m (getRequest devHash timestamp)
+  response             <- (flip httpLbs) m =<< (getRequest devHash timestamp)
+  if responseStatus response == status201 then return True else return False
  where
-  requestUrl  = apiBaseUrl <> "/projects/" <> projectId <> "/files"
-  initRequest = parseRequest requestUrl
-  request =
-    (formDataBody
-      [ partBS "name" "file"
-      , partFileSource "file" fileName
-      , partFileRequestBody "file" fileName $ RequestBodyLBS $ "ooooo"
-      ]
-      initRequest { method         = "POST"
-                  , requestHeaders = [("Content-Type", "application/json")]
-                  }
-    )
+  requestUrl = apiBaseUrl <> "/projects/" <> projectId <> "/files"
   getRequest devHash timestamp =
     setQueryString
-        [ ("api_key"    , Just $ B8.pack apiKey)
-        , ("dev_hash"   , Just $ B8.pack devHash)
-        , ("timestamp"  , (Just $ B8.pack $ show timestamp))
-        , ("file_format", Just $ B8.pack "I18NEXT_MULTILINGUAL_JSON")
+        [ ("api_key"  , Just $ B8.pack apiKey)
+        , ("dev_hash" , Just $ B8.pack devHash)
+        , ("timestamp", (Just $ B8.pack $ show timestamp))
         ]
-      >>= request
+      <$> formDataBody
+            [ partBS "file_format"            "HIERARCHICAL_JSON"
+            , partBS "is_keeping_all_strings" "true"
+            , partBS "locale"                 "en"
+            , partBS "api_key" $ B8.pack apiKey
+            , partBS "dev_hash" $ B8.pack devHash
+            , partBS "timestamp" $ (B8.pack $ show timestamp)
+            , partFileSource "file" filePath
+            ]
+            (parseRequest_ requestUrl)
+              { method         = "POST"
+              , requestHeaders = [("Content-Type", "application/json")]
+              }
+
 
 getFile :: Credential -> ProjectId -> String -> IO FileTranslation
 getFile (Credential apiKey secret) (ProjectId projectId) fileName = do

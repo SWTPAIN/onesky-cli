@@ -13,7 +13,7 @@ stack exec oneup-cli -- download --directory ./tmp/locales --all
 
 ```bash
 #Upload a specific langauge
-$ stack exec oneup-cli -- upload --directory <path/to/locales/folder> --all oneup upload --directory <path/to/locales/folder> --language en
+$ stack exec oneup-cli -- upload --directory <path/to/locales/folder> --language en
 
 #Download all language files
 #Note that we expect there is a subfolder in <path/to/locales/en> which is

@@ -7,7 +7,7 @@ import           Lib
 import           System.Environment
 import qualified Data.ByteString.Lazy          as LBS
 import           Turtle
-import           Data.Text                     as Text
+import qualified Data.Text                     as Text
 import           Paths_oneup_cli                ( version )
 import           Data.Version                   ( showVersion )
 import qualified OneSkyApi
@@ -32,21 +32,18 @@ parseDownload config =
     $ (subcommand "download" "Download Translation from Onesky API" downloadArgs
       )
 
-parseUpload:: Config -> Turtle.Parser (IO ())
+parseUpload :: Config -> Turtle.Parser (IO ())
 parseUpload config =
   fmap (uploadTranslations config)
-    $ (subcommand "upload" "Upload Translation from Onesky API" uploadArgs
-      )
+    $ (subcommand "upload" "Upload Translation from Onesky API" uploadArgs)
 
 uploadArgs :: Turtle.Parser (Turtle.Text, Bool, Maybe Turtle.Text)
 uploadArgs =
   (,,)
-    <$> (optText "directory" 'd' "Directory for translation to be uploaded "
-        )
+    <$> (optText "directory" 'd' "Directory for translation to be uploaded ")
     <*> (switch "all" 'a' "Is Uploading all languages")
     <*> optional
-          (optText "language" 'l' "The language of translation to be uploaded"
-          )
+          (optText "language" 'l' "The language of translation to be uploaded")
 
 downloadArgs :: Turtle.Parser (Turtle.Text, Bool, Maybe Turtle.Text)
 downloadArgs =
@@ -81,28 +78,29 @@ downloadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (dire
   getFileNames dirName =
     getDirectoryContents dirName >>= filterM (fmap not . doesDirectoryExist)
 
-uploadTranslations
-  :: Config -> (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
+uploadTranslations :: Config -> (Turtle.Text, Bool, Maybe Turtle.Text) -> IO ()
 uploadTranslations _ (directory, True, Just _) =
   putStrLn "You can only either specific one lang or all langauges"
-uploadTranslations _ (directory, False, Just lang) =
-  putStrLn "uploading one translation"
-uploadTranslations _ (directory, False, Nothing) =
-  putStrLn "Please speciifc one language or all langauge"
-uploadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (directory, True, Nothing)
+uploadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (directory, False, Just lang)
   = do
-    fileNames    <- getFileNames sourceDirName
-    translations <- OneSkyApi.getFiles
-      (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
-      (OneSkyApi.ProjectId oneskyProjectId)
-      fileNames
-    mapM (writeTranslation dirName) translations
-    putStrLn "Finish Downloading transactions"
-  where
+    fileNames <- getFileNames sourceDirName
+    results <-
+      OneSkyApi.putFiles (OneSkyApi.Credential oneskyApiKey oneskySecretKey)
+                         (OneSkyApi.ProjectId oneskyProjectId)
+        $ fmap (\fileName -> sourceDirName <> "/" <> fileName) fileNames
+    putStrLn $ "Finish Uploading transactions. " <> (show $ getSuccessCount results) <> " Success and " <>  (show $ getFailCount results) <> " Failure"
+ where
   dirName       = (Text.unpack directory)
   sourceDirName = dirName <> "/en"
   getFileNames dirName =
     getDirectoryContents dirName >>= filterM (fmap not . doesDirectoryExist)
+  getSuccessCount = length . (filter (== True))
+  getFailCount = length . (filter (== False))
+
+uploadTranslations _ (directory, False, Nothing) =
+  putStrLn "Please speciifc one language or all langauge"
+uploadTranslations (Config oneskyProjectId oneskyApiKey oneskySecretKey) (directory, True, Nothing)
+  = putStrLn "Coming Soon"
 
 writeTranslation :: String -> OneSkyApi.FileTranslation -> IO ()
 writeTranslation dirName (OneSkyApi.FileTranslation fileName (OneSkyApi.TranslationContent translationContent))
@@ -113,12 +111,12 @@ writeLangTranslation :: String -> String -> (String, Text) -> IO ()
 writeLangTranslation targetDir filename (lang, translation) = do
   createDirectoryIfMissing False directory
   TextIO.writeFile filePath translation
-  where
-    directory = targetDir <> "/" <> lang
-    filePath = directory <> "/" <> filename
+ where
+  directory = targetDir <> "/" <> lang
+  filePath  = directory <> "/" <> filename
 
 parser :: Config -> Turtle.Parser (IO ())
-parser config = parseVersion <|> parseDownload <|> parseUpload config
+parser config = parseVersion <|> parseDownload config <|> parseUpload config
 
 main :: IO ()
 main = do

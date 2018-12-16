@@ -40,6 +40,8 @@ library:
     - unordered-containers
     - async
     - http-client
+    - http-types
+    - http-client-tls
 
 executables:
   oneup-cli:
